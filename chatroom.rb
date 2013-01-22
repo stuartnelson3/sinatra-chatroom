@@ -10,7 +10,7 @@ EventMachine.run do
    
   @channel = EM::Channel.new
  
-  EventMachine::WebSocket.start(:host => '0.0.0.0', :port => 8080) do |ws|
+  EventMachine::WebSocket.start(:host => '0.0.0.0', :port => 55809) do |ws|
     ws.onopen {
       sid = @channel.subscribe { |msg| ws.send msg }
       @channel.push "#{sid} connected!"
