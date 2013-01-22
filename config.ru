@@ -4,4 +4,4 @@ require 'bundler'
 Bundler.require
 
 require './chatroom'
-run Sinatra::Application
+run App.run!

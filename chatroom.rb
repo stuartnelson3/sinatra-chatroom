@@ -13,10 +13,10 @@ EventMachine.run do
   EventMachine::WebSocket.start(:host => '0.0.0.0', :port => 8080) do |ws|
     ws.onopen {
       sid = @channel.subscribe { |msg| ws.send msg }
-      @channel.push "Guest#{sid} connected!"
+      @channel.push "#{sid} connected!"
  
       ws.onmessage { |msg|
-        @channel.push "<Guest#{sid}>: #{msg}"
+        @channel.push "<#{sid}>: #{msg}"
       }
  
       ws.onclose {
@@ -26,5 +26,5 @@ EventMachine.run do
  
   end
  
-  App.run!({:port => 3000})
+  App.run! # ({:port => 3000})
 end
