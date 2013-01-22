@@ -1,3 +1,3 @@
 source 'http://rubygems.org'
-require 'sinatra'
-require 'em-websocket'
+gem 'sinatra'
+gem 'em-websocket'
