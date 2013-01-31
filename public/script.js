@@ -13,21 +13,12 @@ $(function(){
     ws.send("Join the chat");
   };
 
-  // $("#send-message-area").submit(function(e) {
-  //   if($("#msg").val().length > 0){
-  //     ws.send($("#msg").val());
-  //     $("#msg").val("");
-  //   return false;
-  //   }    
-  // });
-
   $(document).on('keydown', function(e) {
     if ($("#msg").is(":focus") && e.keyCode === 13) {
-      if($("#msg").val().length > 0){
+      if ($("#msg").val().length > 0){
         ws.send($("#msg").val());
         $("#msg").val("");
       }
-      return false;
     }
   });
   
