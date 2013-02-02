@@ -1,16 +1,19 @@
 require 'eventmachine'
 require 'paint'
 
-# finish private message
-# add multiple rooms
+# add uniqueness check on user names
+# make web interface/gui interface
 
 module Chatroom
-  attr_reader :username
+  attr_reader :username, :chatroom
   DM_REGEXP = /^@([a-zA-Z0-9]+)\s*:?\s*(.+)/
   @@connections = []
+  @@chatrooms = ["General", "Games", "Other"]
+  @@commands = ["help", "exit", "users", "switch_chatroom"]
 
   def post_init
     @username = nil
+    @chatroom = nil
     ask_username
   end
 
@@ -19,11 +22,21 @@ module Chatroom
   end
 
   def receive_data(data)
-    if entered_username?
+    if ready_to_chat?
       handle_chat_message(data.strip)
+    elsif entered_username?
+      pick_chatroom(data.strip)
     else
       handle_username(data.strip)
     end
+  end
+
+  def ready_to_chat?
+    entered_username? && picked_chatroom?
+  end
+
+  def picked_chatroom?
+    @chatroom && !@chatroom.empty?
   end
 
   def entered_username?
@@ -32,30 +45,46 @@ module Chatroom
 
   def handle_username(input)
     if input.empty?
-      send_line("Blank usernames are not allowed. Try again.")
+      chatroom_send_line(paint_red("Blank usernames are not allowed. Try again."))
       ask_username
     else
       @username = input
       @@connections << self
-      self.other_peers.each { |c| c.send_data("#{@username} has joined the room\n") }
-      puts "#{@username} has joined"
-
-      self.send_line("[info] Ohai, #{@username}")
+      ask_chatroom_preference
     end
   end
 
+  def pick_chatroom(input)
+    if input.empty?
+      chatroom_send_line(paint_red("You must choose a chatroom"))
+      ask_chatroom_preference
+    elsif @@chatrooms.map(&:downcase).include? input.downcase
+      @chatroom = input.downcase.capitalize
+      chatroom_send_line("Entering #{@chatroom}")
+      other_peers.each { |c| c.send_line("\n#{@username} has joined the chat") }
+      puts "#{@username} has joined #{@chatroom}"
+      send_line("[info] Welcome, #{@username}")
+    end
+  end
+
+  def ask_chatroom_preference
+    chatroom_send_line("The available chatrooms are:")
+    @@chatrooms.each_with_index {|chatroom, i| chatroom_send_line("#{i + 1}. #{chatroom}")}
+    send_line("Which chatroom would you like to join?")
+  end
+
   def ask_username
-    self.send_line("[info] Enter your username:")
+    send_line("[info] Enter your username:")
   end
 
   def handle_chat_message(msg)
     if command?(msg)
-      self.handle_command(msg)
+      handle_command(msg)
     else
       if direct_message?(msg)
         send_direct_message(msg)
       else
-        self.announce(msg, "#{@username}:")
+        announce(msg, "#{@username}:")
       end
     end
   end
@@ -69,8 +98,9 @@ module Chatroom
     name, message = pm[1], pm[2]
 
     user = @@connections.select {|c| c.username == name }.first
-    user.send_line(paint_green("Message from #{self.username}: #{message}"))
-    self.send_line(paint_green("Sent to #{user.username}: #{message}"))
+
+    user.send_line(paint_green("\nMessage from #{self.username}: #{message}"))
+    send_line(paint_green("Sent to #{user.username}: #{message}"))
   end
 
   def parse_pm(msg)
@@ -78,31 +108,53 @@ module Chatroom
   end
 
   def other_peers
-    @@connections.reject {|c| self == c }
+    @@connections.reject {|c| self == c }.select {|c| c.chatroom == self.chatroom }
   end
 
   def send_line(line)
-    self.send_data("#{line}\n")
+    send_data("#{line}\n> ")
+  end
+
+  def chatroom_send_line(line)
+    send_data("#{line}\n")
   end
 
   def command?(input)
-    input =~ /(exit|users)$/i
+    @@commands.include? input
   end
 
   def handle_command(cmd)
     case cmd
     when /exit$/i
       puts paint_red("#@username has left the chat")
-      self.close_connection
+      close_connection
     when /users$/i
-      self.list_chatroom_users
+      list_chatroom_users
+    when /switch_chatroom$/i
+      switch_chatroom
+    when /help/i
+      list_commands
     end
+  end
+
+  def list_commands
+    chatroom_send_line("Available commands are:")
+    send_line(@@commands.join(", "))
   end
 
   def list_chatroom_users
     names = other_peers.map(&:username)
-    self.send_line(paint_blue("#{names.count} other users in chatroom:"))
-    names.each {|n| self.send_line(paint_blue("@#{n}"))}
+    plurality = names.count == 1 ? "user" : "users"
+    chatroom_send_line(paint_blue("#{names.count} other #{plurality} in #{@chatroom}:"))
+    send_line(names.join(", "))
+  end
+
+  def switch_chatroom
+    chatroom_send_line("Leaving #{@chatroom}")
+    other_peers.each {|p| p.send_line(paint_red("\n#{@username} has left the chat"))}
+    puts "#{@username} has left #{@chatroom}"
+    @chatroom = nil
+    ask_chatroom_preference
   end
 
   def announce(msg = nil, prefix = "[chat server]")
@@ -112,7 +164,7 @@ module Chatroom
   # paint_blue, paint_green, paint_red, e.g.
   def method_missing(method_name, *args)
     if method_name =~ /paint(_(.+))/
-      Paint["#{args.first.to_s}", $2.intern]
+      Paint["#{args.join}", $2.intern]
     else
       super
     end
