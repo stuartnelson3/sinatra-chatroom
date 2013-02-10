@@ -1,8 +1,10 @@
 require 'eventmachine'
 require 'paint'
+require 'sinatra'
 
 # add uniqueness check on user names
 # make web interface/gui interface
+# add virtus to manage attributes
 
 module Chatroom
   attr_reader :username, :chatroom
@@ -12,6 +14,7 @@ module Chatroom
   @@commands = ["help", "exit", "users", "switch_chatroom"]
 
   def post_init
+    puts "User has connected"
     @username = nil
     @chatroom = nil
     ask_username
@@ -43,9 +46,17 @@ module Chatroom
     @username && !@username.empty?
   end
 
+  def username_taken?(input)
+    usernames = @@connections.map(&:username)
+    usernames.include? input
+  end
+
   def handle_username(input)
     if input.empty?
       chatroom_send_line(paint_red("Blank usernames are not allowed. Try again."))
+      ask_username
+    elsif username_taken?(input)
+      chatroom_send_line(paint_red("That username is already taken. Please pick another."))
       ask_username
     else
       @username = input
@@ -172,6 +183,14 @@ module Chatroom
 end
 
 EventMachine::run {
-  EventMachine::start_server "127.0.0.1", 8081, Chatroom
+  class App < Sinatra::Base
+    get '/' do
+      erb :index
+    end
+  end
+  EventMachine::start_server "127.0.0.1", 8081, Chatroom do |conn|
+    # http://stackoverflow.com/questions/3985092/one-question-with-eventmachine
+    
+  end
   puts 'running echo server on 8081'
 }

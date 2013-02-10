@@ -4,7 +4,6 @@ require 'em-websocket'
 EventMachine.run do
   class App < Sinatra::Base
     get '/' do
-      @name = params[:name]
       erb :index
     end
   end
@@ -14,7 +13,7 @@ EventMachine.run do
   EventMachine::WebSocket.start(:host => '0.0.0.0', :port => 8080) do |ws|
     ws.onopen {
       sid = @channel.subscribe {|msg| ws.send msg }
-      @channel.push "#{@name} connected!"
+      @channel.push "#{sid} connected!"
 
       ws.onmessage {|msg|
         @channel.push "<#{sid}>: #{msg}"
@@ -27,8 +26,5 @@ EventMachine.run do
  
   end
  
-  App.run! ({:port => 3000})
+  App.run! ({:port => 4567})
 end
-
-# ChatRooms = Hash.new{ |h,k| h[k] = EM::Channel.new }
-# ChatRooms['eventmachine'].subscribe{ |msg| puts(msg) }

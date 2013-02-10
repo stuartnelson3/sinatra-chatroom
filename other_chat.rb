@@ -1,35 +1,8 @@
-# coding: utf-8
-require 'sinatra'
-require 'sinatra/streaming'
+# require 'eventmachine'
+require 'em-http-request'
 
-list = []
-
-before do
-  content_type :txt
-end
-
-connections = []
-
-get '/consume' do
-  stream(:keep_open) do |out|
-    # store connection for later on
-    connections << out
-
-    # remove connection when closed properly
-    out.callback { connections.delete(out) }
-
-    # remove connection when closed due to an error
-    out.errback do
-      logger.warn 'we just lost a connection!'
-      connections.delete(out)
-    end
-  end
-end
-
-get '/broadcast/:message' do
-  connections.each do |out| 
-    out << "#{Time.now} -> #{params[:message]}" << "\n"
-  end
-
-  "Sent #{params[:message]} to all clients."
+EventMachine.run do
+  puts 'starting get to twitter'
+  http = EventMachine::HttpRequest.new('http://www.twitter.com/firehose').get
+  http.stream { |chunk| print chunk }
 end
