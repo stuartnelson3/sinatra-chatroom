@@ -1,13 +1,26 @@
 require 'net/telnet'
-@localhost = Net::Telnet::new("Host" => "127.0.0.1",
+
+Shoes.app :width => 480, :height => 240 do
+  @localhost = Net::Telnet::new("Host" => "127.0.0.1",
                              "Port" => 8081,
                              "Prompt" => /[$%#>] \z/,
                              "Telnetmode" => false)
+  @localhost.cmd("ray1")
+  @localhost.cmd("general")
+  @localhost.cmd("hello everyone")
 
-Shoes.app :width => 480, :height => 240 do
   flow :width => 480, :height => 240, :margin => 10 do
     @chat_window = stack :width => "85%", :height => "70%", :scroll => true do
       border black, :strokewidth => 1
+    end
+    # doesn't work, need to find way to
+    # get info stream
+    Thread.new do
+      @localhost.waitfor(/logoff/) do |data|
+        @chat_window.append do
+          para "#{data.inspect}"
+        end
+      end
     end
     stack :width => "15%", :height => "70%", :scroll => true do
       border black, :strokewidth => 1
@@ -22,13 +35,14 @@ Shoes.app :width => 480, :height => 240 do
         @e = edit_line :width => "100%"
       end
       button("Enter") do
-        @output = @localhost.cmd "#{@e.text}"
         @chat_window.append do
-          para "#{@output}"
+          para "#{@e.text}"
         end
+        @localhost.print("#{@e.text}")
         @chat_line.clear do
           @e = edit_line :width => "100%"
         end
+
       end
     end
   end
@@ -56,3 +70,4 @@ end
 # gets back output
 
 # localhost.cmd "" # => waits for next message from server
+# localhost.waitfor(/logoff/) {|data| puts data.inspect }

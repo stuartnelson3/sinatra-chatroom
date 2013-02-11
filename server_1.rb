@@ -22,6 +22,7 @@ module Chatroom
 
   def unbind
     puts paint_red("#@username has disconnected")
+    @@connections.reject! {|conn| conn.username == @username }
   end
 
   def receive_data(data)
