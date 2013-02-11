@@ -1,25 +1,29 @@
 require 'net/telnet'
 
 Shoes.app :width => 480, :height => 240 do
+  name = ask("Please, enter your name:")
   @localhost = Net::Telnet::new("Host" => "127.0.0.1",
                              "Port" => 8081,
                              "Prompt" => /[$%#>] \z/,
                              "Telnetmode" => false)
-  @localhost.cmd("ray1")
-  @localhost.cmd("general")
+  @localhost.cmd(name)
+  chat = ask("Type general:")
+  @localhost.cmd(chat)
   @localhost.cmd("hello everyone")
 
   flow :width => 480, :height => 240, :margin => 10 do
     @chat_window = stack :width => "85%", :height => "70%", :scroll => true do
       border black, :strokewidth => 1
     end
-    # doesn't work, need to find way to
-    # get info stream
+    # thread stops when user joins after this
+    # and attempts to dm gui user
+    # check for new users? or re-build thread?
     Thread.new do
       @localhost.waitfor(/logoff/) do |data|
         @chat_window.append do
           para "#{data.inspect}"
         end
+        @chat_window.scroll_top = @chat_window.scroll_max
       end
     end
     stack :width => "15%", :height => "70%", :scroll => true do
