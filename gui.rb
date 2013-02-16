@@ -1,32 +1,53 @@
 require 'net/telnet'
 
-Shoes.app :width => 480, :height => 240 do
-  name = ask("Please, enter your name:")
-  @localhost = Net::Telnet::new("Host" => "127.0.0.1",
-                             "Port" => 8081,
-                             "Prompt" => /[$%#>] \z/,
-                             "Telnetmode" => false)
-  @localhost.cmd(name)
-  chat = ask("Type general:")
-  @localhost.cmd(chat)
-  @localhost.cmd("hello everyone")
+# when thread with #waitfor errors out,
+# chat data no longer appears, but
+# sending data still works in terminal
+# handle when the thread stops to restart
+# it is timing out...
 
-  flow :width => 480, :height => 240, :margin => 10 do
-    @chat_window = stack :width => "85%", :height => "70%", :scroll => true do
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Design
+# 1. chat box should always contain chat data 
+# 2. hitting enter should submit chat data;
+#    currently edit box won't act on 'enter', but
+#    in main window enter will submit data.
+# 3. side window should update with users in chatroom
+# 4. present chatroom options as clickable interface,
+#    and be able to switch rooms through that same interface
+#    e.g. "back to room selection" and then click on new room
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+Shoes.app(:width => 480, :height => 360, :title => "Chatroom", :resizable => true) do
+  # name = ask("Please, enter your name:")
+  # @localhost = Net::Telnet::new("Host" => "127.0.0.1",
+  #                            "Port" => 8081,
+  #                            "Prompt" => /[$%#>] \z/,
+  #                            "Timeout" => 60 * 5,
+  #                            "Telnetmode" => false)
+  # @localhost.cmd(name)
+  # chat = ask("Type general:")
+  # @localhost.cmd(chat)
+  # @localhost.cmd("hello everyone")
+
+  flow(:width => 480, :height => 240, :margin => 10) do
+    stack(:width => "85%", :height => "70%") do
       border black, :strokewidth => 1
+      @chat_window = stack(:width => "100%", :height => "100%", :scroll => true)
     end
     # thread stops when user joins after this
     # and attempts to dm gui user
     # check for new users? or re-build thread?
-    Thread.new do
-      @localhost.waitfor(/logoff/) do |data|
-        @chat_window.append do
-          para "#{data.inspect}"
-        end
-        @chat_window.scroll_top = @chat_window.scroll_max
-      end
-    end
-    stack :width => "15%", :height => "70%", :scroll => true do
+    # # # # think this is fixed # # # #
+    # Thread.new do
+    #   @localhost.waitfor(/logoff/) do |data|
+    #     @chat_window.append do
+    #       para data
+    #     end
+    #     @chat_window.scroll_top = @chat_window.scroll_max
+    #   end
+    # end
+    stack(:width => "15%", :height => "70%", :scroll => true) do
       border black, :strokewidth => 1
       para "User 1 \n",
         "User 2 \n",
@@ -34,19 +55,30 @@ Shoes.app :width => 480, :height => 240 do
         "User 4 \n",
         "User 5 \n",
     end
-    stack :width => "100%" do
+    stack(:width => "100%") do
       @chat_line = stack :width => "70%" do
-        @e = edit_line :width => "100%"
       end
-      button("Enter") do
-        @chat_window.append do
-          para "#{@e.text}"
+      @chat_line_data = ""
+      keypress {|k|
+        if k == "\n"
+          @chat_window.append { para @chat_line_data }
+          @chat_line_data.clear
+        elsif k == :backspace
+          @chat_line_data.chop!
+        else
+          @chat_line_data << k
         end
+        @chat_line.clear
+        @chat_line.append { para @chat_line_data }
+      }
+      button("Enter") do
+        # @chat_window.append do
+        #   para "#{@e.text}"
+        # end
         @localhost.print("#{@e.text}")
         @chat_line.clear do
           @e = edit_line :width => "100%"
         end
-
       end
     end
   end
