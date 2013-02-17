@@ -18,7 +18,8 @@ require 'net/telnet'
 #    e.g. "back to room selection" and then click on new room
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-Shoes.app(:width => 480, :height => 360, :title => "Chatroom", :resizable => true) do
+Shoes.app(:width => 480, :height => 360, :title => "Chatroom") do
+  background "#ffffff"
   # name = ask("Please, enter your name:")
   # @localhost = Net::Telnet::new("Host" => "127.0.0.1",
   #                            "Port" => 8081,
@@ -30,10 +31,10 @@ Shoes.app(:width => 480, :height => 360, :title => "Chatroom", :resizable => tru
   # @localhost.cmd(chat)
   # @localhost.cmd("hello everyone")
 
-  flow(:width => 480, :height => 240, :margin => 10) do
-    stack(:width => "85%", :height => "70%") do
-      border black, :strokewidth => 1
-      @chat_window = stack(:width => "100%", :height => "100%", :scroll => true)
+  # stack(:width => 480, :height => 245) do
+    stack(:width => "80%", :margin => "2.5%") do
+      border "#e2e2e2", :strokewidth => 1
+      @chat_window = stack(:width => "100%", :height => 240, :scroll => true, :wrap => "word")
     end
     # thread stops when user joins after this
     # and attempts to dm gui user
@@ -47,40 +48,33 @@ Shoes.app(:width => 480, :height => 360, :title => "Chatroom", :resizable => tru
     #     @chat_window.scroll_top = @chat_window.scroll_max
     #   end
     # end
-    stack(:width => "15%", :height => "70%", :scroll => true) do
-      border black, :strokewidth => 1
-      para "User 1 \n",
-        "User 2 \n",
-        "User 3 \n",
-        "User 4 \n",
-        "User 5 \n",
-    end
-    stack(:width => "100%") do
-      @chat_line = stack :width => "70%" do
-      end
-      @chat_line_data = ""
-      keypress {|k|
-        if k == "\n"
-          @chat_window.append { para @chat_line_data }
-          @chat_line_data.clear
-        elsif k == :backspace
-          @chat_line_data.chop!
-        else
-          @chat_line_data << k
-        end
-        @chat_line.clear
-        @chat_line.append { para @chat_line_data }
-      }
-      button("Enter") do
-        # @chat_window.append do
-        #   para "#{@e.text}"
-        # end
-        @localhost.print("#{@e.text}")
-        @chat_line.clear do
-          @e = edit_line :width => "100%"
-        end
+    stack(:width => "18%", :margin => [0, "2.5%", 0, "2.5%"]) do
+      border "#e2e2e2", :strokewidth => 1
+      stack(:width => "100%", :height => 240) do
+        para "User 1\n",
+        "User 2\n",
+        "User 3\n",
+        "User 4\n",
+        "User 5\n"
       end
     end
+  # end
+  stack(:width => "80%", :margin => ["2.5%", 0, "2.5%", 0]) do
+    border "#e2e2e2", :strokewidth => 1
+    @chat_line = stack(:width => "100%", :wrap => "word") { para "" }
+    @chat_line_data = ""
+    keypress {|k|
+      if k == "\n"
+        @chat_window.append { para @chat_line_data }
+        @chat_line_data.clear
+      elsif k == :backspace
+        @chat_line_data.chop!
+      else
+        @chat_line_data << k
+      end
+      @chat_line.clear
+      @chat_line.append { para @chat_line_data, :weight => 600 }
+    }
   end
 end
 
