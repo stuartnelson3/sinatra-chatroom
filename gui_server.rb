@@ -1,16 +1,10 @@
 require 'eventmachine'
 require 'paint'
+require 'sinatra'
 
 # add uniqueness check on user names
 # make web interface/gui interface
 # add virtus to manage attributes
-
-# add data structure to hold record of users present,
-# push changes to user window in gui
-# remove the newline stuff
-# remove terminal formatting
-
-# refactor this into something readable
 
 module Chatroom
   attr_reader :username, :chatroom
@@ -27,7 +21,7 @@ module Chatroom
   end
 
   def unbind
-    puts paint_red("#@username has disconnected")
+    puts "#@username has disconnected"
     @@connections.reject! {|conn| conn.username == @username }
   end
 
@@ -60,10 +54,10 @@ module Chatroom
 
   def handle_username(input)
     if input.empty?
-      send_line(paint_red("Blank usernames are not allowed. Try again."))
+      chatroom_send_line("Blank usernames are not allowed. Try again.")
       ask_username
     elsif username_taken?(input)
-      send_line(paint_red("That username is already taken. Please pick another."))
+      chatroom_send_line("That username is already taken. Please pick another.")
       ask_username
     else
       @username = input
@@ -74,20 +68,23 @@ module Chatroom
 
   def pick_chatroom(input)
     if input.empty?
-      send_line(paint_red("You must choose a chatroom"))
+      chatroom_send_line("You must choose a chatroom")
       ask_chatroom_preference
     elsif @@chatrooms.map(&:downcase).include? input.downcase
       @chatroom = input.downcase.capitalize
-      send_line("Entering #{@chatroom}")
-      other_peers.each { |c| c.send_line("\n#{@username} has joined the chat") }
+      chatroom_send_line("Entering #{@chatroom}")
+      other_peers.each {|c|
+        c.send_line("\n#{@username} has joined the chat")
+        chatroom_users_side_window
+      }
       puts "#{@username} has joined #{@chatroom}"
       send_line("[info] Welcome, #{@username}")
     end
   end
 
   def ask_chatroom_preference
-    send_line("The available chatrooms are:")
-    @@chatrooms.each_with_index {|chatroom, i| send_line("#{i + 1}. #{chatroom}")}
+    chatroom_send_line("The available chatrooms are:")
+    @@chatrooms.each_with_index {|chatroom, i| chatroom_send_line("#{i + 1}. #{chatroom}")}
     send_line("Which chatroom would you like to join?")
   end
 
@@ -117,8 +114,8 @@ module Chatroom
 
     user = @@connections.select {|c| c.username == name }.first
 
-    user.send_line(paint_green("\nMessage from #{self.username}: #{message}"))
-    send_line(paint_green("Sent to #{user.username}: #{message}"))
+    user.send_line("ZXCV_GREEN Message from #{self.username}: #{message}")
+    send_line("ZXCV_GREEN Sent to #{user.username}: #{message}")
   end
 
   def parse_pm(msg)
@@ -133,6 +130,10 @@ module Chatroom
     send_data("#{line}")
   end
 
+  def chatroom_send_line(line)
+    send_data("#{line}")
+  end
+
   def command?(input)
     @@commands.include? input
   end
@@ -140,7 +141,7 @@ module Chatroom
   def handle_command(cmd)
     case cmd
     when /exit$/i
-      puts paint_red("#@username has left the chat")
+      puts "#@username has left the chat"
       close_connection
     when /users$/i
       list_chatroom_users
@@ -152,20 +153,26 @@ module Chatroom
   end
 
   def list_commands
-    send_line("Available commands are:")
+    chatroom_send_line("Available commands are:")
     send_line(@@commands.join(", "))
   end
 
   def list_chatroom_users
     names = other_peers.map(&:username)
     plurality = names.count == 1 ? "user" : "users"
-    send_line(paint_blue("#{names.count} other #{plurality} in #{@chatroom}:"))
+    chatroom_send_line("#{names.count} other #{plurality} in #{@chatroom}:")
     send_line(names.join(", "))
   end
 
+  def chatroom_users_side_window
+    names = other_peers.map(&:username)
+    names.unshift "ZXCV_USER_LIST"
+    send_line(names.join("\n"))
+  end
+
   def switch_chatroom
-    send_line("Leaving #{@chatroom}")
-    other_peers.each {|p| p.send_line(paint_red("\n#{@username} has left the chat"))}
+    chatroom_send_line("Leaving #{@chatroom}")
+    other_peers.each {|p| p.send_line("\n#{@username} has left the chat")}
     puts "#{@username} has left #{@chatroom}"
     @chatroom = nil
     ask_chatroom_preference
@@ -186,6 +193,14 @@ module Chatroom
 end
 
 EventMachine::run {
-  EventMachine::start_server "127.0.0.1", 8081, Chatroom
+  class App < Sinatra::Base
+    get '/' do
+      erb :index
+    end
+  end
+  EventMachine::start_server "127.0.0.1", 8081, Chatroom do |conn|
+    # http://stackoverflow.com/questions/3985092/one-question-with-eventmachine
+    
+  end
   puts 'running echo server on 8081'
 }
